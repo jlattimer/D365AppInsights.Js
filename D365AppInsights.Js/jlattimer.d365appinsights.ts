@@ -55,7 +55,7 @@ namespace D365AppInsights {
                     } else {
                         // IE doesn't support Beacon - use sync XHR w/ delay instead
                         // Need slight delay to ensure PageView gets sent
-                        var waitMs = 100; // Miliseconds wait
+                        var waitMs = 100; // Milliseconds wait
                         var futureTime = (new Date()).getTime() + waitMs;
 
                         sendPageViewRequest(envelope);
@@ -505,10 +505,13 @@ namespace D365AppInsights {
     var xhrProto = XMLHttpRequest.prototype,
         origOpen = xhrProto.open;
 
-    xhrProto.open = function (method, url, async) {
+    xhrProto.open = <{
+        (method: string, url: string): void;
+        (method: string, url: string, async: boolean, username?: string, password?: string): void
+    }>(function (method, url, async) {
         this._url = url;
         this._method = method;
         this._async = async;
         return origOpen.apply(this, arguments);
-    };
+    });
 }
