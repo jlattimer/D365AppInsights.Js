@@ -4,9 +4,14 @@
     "target": "es5",
     "removeComments": false,
     "declaration": true,
-    "sourceMap": false
+    "sourceMap": false,
+    "skipLibCheck": true
   },
   "include": [
     "./**/*"
-  ]
+  ],
+  "exclude": [
+    "./node_modules",
+    "./packages"
+  ] 
 }
