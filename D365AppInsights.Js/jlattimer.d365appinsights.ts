@@ -8,6 +8,8 @@ namespace D365AppInsights {
     var percentLoggedPageview: number = 100;
     var disablePageLoadTimeTracking: boolean = false;
     var percentLoggedPageLoadTime: number = 100;
+    var disablePageSaveTimeTracking: boolean = false;
+    var percentLoggedPageSaveTime: number = 100;
     var disableTraceTracking: boolean = false;
     var percentLoggedTrace: number = 100;
     var disableExceptionTracking: boolean = false;
@@ -19,6 +21,7 @@ namespace D365AppInsights {
     var disableEventTracking: boolean = false;
     var percentLoggedEvent: number = 100;
     var targetPage: any = window;
+    var pageSaveEventAdded = false;
 
     /**
      * Configures and enables logging to Application Insights.
@@ -111,6 +114,15 @@ namespace D365AppInsights {
             if (config.hasOwnProperty("percentLoggedPageLoadTime")) //default 100
                 percentLoggedPageLoadTime = getLogPercent(config.percentLoggedPageLoadTime);
 
+            if (config.hasOwnProperty("disablePageSaveTimeTracking")) { //default false
+                disablePageSaveTimeTracking = config.disablePageSaveTimeTracking;
+                if (!disablePageSaveTimeTracking)
+                    addPageSaveHandler();
+            }
+
+            if (config.hasOwnProperty("percentLoggedPageSaveTime")) //default 100
+                percentLoggedPageSaveTime = getLogPercent(config.percentLoggedPageSaveTime);
+
             if (config.hasOwnProperty("disableExceptionTracking")) { //default false
                 disableExceptionTracking = config.disableExceptionTracking;
                 (window as any).appInsights.config.disableExceptionTracking = config.disableExceptionTracking;
@@ -164,6 +176,8 @@ namespace D365AppInsights {
                 console.log(`percentLoggedPageview: ${percentLoggedPageview}`);
                 console.log(`disablePageLoadTimeTracking: ${disablePageLoadTimeTracking}`);
                 console.log(`percentLoggedPageLoadTime: ${percentLoggedPageLoadTime}`);
+                console.log(`disablePageSaveTimeTracking: ${disablePageSaveTimeTracking}`);
+                console.log(`percentLoggedPageSaveTime: ${percentLoggedPageSaveTime}`);
                 console.log(`disableExceptionTracking: ${disableExceptionTracking}`);
                 console.log(`percentLoggedException: ${percentLoggedException}`);
                 console.log(`disableAjaxTracking: ${(window as any).appInsights.config.disableAjaxTracking}`);
@@ -181,6 +195,55 @@ namespace D365AppInsights {
         } catch (error) {
             console.log(`DEBUG: Application Insights error parsing configuration parameters: ${error}`);
         }
+    }
+
+    function addPageSaveHandler() {
+        if (disablePageSaveTimeTracking || pageSaveEventAdded)
+            return;
+
+        Xrm.Page.data.entity.addOnSave(D365AppInsights.writePageSaveMetric);
+        pageSaveEventAdded = true;
+    }
+
+    function clearPerformanceEntries() {
+        targetPage.performance.clearMarks();
+        targetPage.performance.clearMeasures();
+    }
+
+    export function trackSaveTime() {
+        if (disablePageSaveTimeTracking)
+            return;
+
+        clearPerformanceEntries()
+        targetPage.performance.mark("PageSave-Start");
+        if (enableDebug)
+            console.log(`DEBUG: Application Insights started timing PageSave`);
+    }
+
+    export function writePageSaveMetric(executionContext) {
+        if (!log("PageSaveTime", disablePageSaveTimeTracking, percentLoggedPageSaveTime))
+            return;
+
+        targetPage.performance.mark("PageSave-End");
+        if (enableDebug)
+            console.log(`DEBUG: Application Insights ended timing PageSave`);
+
+        targetPage.performance.measure(
+            "PageSaveMetric",
+            "PageSave-Start",
+            "PageSave-End"
+        );
+
+        var measures = targetPage.performance.getEntriesByName("PageSaveMetric", "measure");
+        var measure = measures[0];
+        var saveMode = executionContext.getEventArgs().getSaveMode();
+        var duration = Math.round(measure.duration);
+
+        writeMetric("PageSave", duration, 1, null, null, { saveMode: getSaveModeName(saveMode) });
+        if (enableDebug)
+            console.log(`DEBUG: Application Insights logged metric: PageSave time: ${duration}ms`);
+
+        clearPerformanceEntries()
     }
 
     function writePageLoadMetric() {
@@ -449,6 +512,35 @@ namespace D365AppInsights {
                 return "Disabled";
             case 6:
                 return "Bulk Edit";
+            default:
+                return "Undefined";
+        }
+    }
+
+    function getSaveModeName(saveMode: number): string {
+        switch (saveMode) {
+            case 1:
+                return "Save";
+            case 2:
+                return "Save and Close";
+            case 5:
+                return "Deactivate";
+            case 6:
+                return "Reactivate";
+            case 7:
+                return "Send";
+            case 15:
+                return "Disqualify";
+            case 16:
+                return "Qualify";
+            case 47:
+                return "Assign";
+            case 58:
+                return "Save as Completed";
+            case 59:
+                return "Save and New";
+            case 70:
+                return "Auto Save";
             default:
                 return "Undefined";
         }
