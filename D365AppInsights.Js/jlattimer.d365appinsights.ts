@@ -29,6 +29,11 @@ namespace D365AppInsights {
      * @param   {any} [config] The configuration JSON 
      */
     export function startLogging(executionContext: any, config?: any) {
+        if ((window as any).appInsights.config.instrumentationKey === "Your AI Instrumentation Key" ||
+            !isGuid((window as any).appInsights.config.instrumentationKey)) {
+            console.error(`ERROR: Application Insights Instrumentation Key was not updated or has an invalid value - in the code search for 'Your AI Instrumentation Key' and replace it with your key`);
+            return;
+        }
 
         if (arguments.length === 1) {
             config = executionContext;
@@ -648,6 +653,14 @@ namespace D365AppInsights {
 
     function isDefined<T>(a: T | null | undefined): a is T {
         return a !== null && a !== undefined;
+    }
+
+    function isGuid(stringToTest) {
+        if (stringToTest[0] === "{") {
+            stringToTest = stringToTest.substring(1, stringToTest.length - 1);
+        }
+        var regexGuid = /^(\{){0,1}[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\}){0,1}$/gi;
+        return regexGuid.test(stringToTest);
     }
 
     var xhrProto = XMLHttpRequest.prototype,
