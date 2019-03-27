@@ -24,12 +24,21 @@ namespace D365AppInsights {
     var pageSaveEventAdded = false;
 
     /**
-     * Configures and enables logging to Application Insights.
+     * Configures and enables logging to Application Insights. Must send both executionContext and config or just config.
+     * @param   {any} [executionContext] Form execution context
      * @param   {any} [config] The configuration JSON 
      */
-    export function startLogging(config?: any) {
+    export function startLogging(executionContext: any, config?: any) {
+
+        if (arguments.length === 1) {
+            config = executionContext;
+            executionContext = null;
+        }
+
+        let contextValues = getContextValues(executionContext)
+
         if (config)
-            setConfigOptions(config);
+            setConfigOptions(config, contextValues.formContext);
 
         // Capture PageView start
         if (!disablePageviewTracking)
@@ -41,7 +50,7 @@ namespace D365AppInsights {
                 console.log("DEBUG: Application Insights page target: window.parent");
         }
 
-        var formName = Xrm.Page.ui.formSelector.getCurrentItem().getLabel();
+        let formName = contextValues.formName;
 
         // Custom implementation of Pageview to avoid duplicate events being 
         // recorded likely due to CRM/D365 already implementing AI which currently
@@ -71,12 +80,12 @@ namespace D365AppInsights {
         }
 
         props = {};
-        props["entityId"] = Xrm.Page.data.entity.getId().substr(1, 36);
-        props["entityName"] = Xrm.Page.data.entity.getEntityName();
-        props["formType"] = getFormTypeName(Xrm.Page.ui.getFormType());
+        props["entityId"] = contextValues.entityId;
+        props["entityName"] = contextValues.entityName;
+        props["formType"] = contextValues.formType;
+        props["orgName"] = contextValues.orgName;
+        props["orgVersion"] = contextValues.orgVersion;
         props["formName"] = formName;
-        props["orgName"] = Xrm.Page.context.getOrgUniqueName();
-        props["orgVersion"] = Xrm.Page.context.getVersion();
         props["source"] = "JavaScript";
 
         if (!(window as any).appInsights.queue)
@@ -90,12 +99,43 @@ namespace D365AppInsights {
             });
         });
 
-        (window as any).appInsights.setAuthenticatedUserContext(Xrm.Page.context.getUserId().substr(1, 36), null, false);
+        (window as any).appInsights.setAuthenticatedUserContext(contextValues.userId, null, false);
 
         writePageLoadMetric();
     }
 
-    function setConfigOptions(config: any) {
+    function getContextValues(executionContext: any): any {
+        let contextValues = {};
+
+        if (executionContext && isDefined(executionContext.getFormContext)) {
+            let formContext = executionContext.getFormContext();
+            contextValues["formName"] = formContext.ui.formSelector.getCurrentItem().getLabel();
+            contextValues["entityId"] = formContext.data.entity.getId().replace(/[{}]/g, "");
+            contextValues["entityName"] = formContext.data.entity.getEntityName();
+            contextValues["formType"] = getFormTypeName(formContext.ui.getFormType());
+            contextValues["orgName"] = Xrm.Utility.getGlobalContext().organizationSettings.uniqueName;
+            contextValues["orgVersion"] = Xrm.Utility.getGlobalContext().getVersion();
+            contextValues["userId"] = Xrm.Utility.getGlobalContext().userSettings.userId.replace(/[{}]/g, "");
+            contextValues["formContext"] = formContext;
+            return contextValues;
+        }
+        else if (isDefined(Xrm.Page)) {
+            contextValues["formName"] = Xrm.Page.ui.formSelector.getCurrentItem().getLabel();
+            contextValues["entityId"] = Xrm.Page.data.entity.getId().replace(/[{}]/g, "");
+            contextValues["entityName"] = Xrm.Page.data.entity.getEntityName();
+            contextValues["formType"] = getFormTypeName(Xrm.Page.ui.getFormType());
+            contextValues["orgName"] = Xrm.Page.context.getOrgUniqueName();
+            contextValues["orgVersion"] = Xrm.Page.context.getVersion();
+            contextValues["userId"] = Xrm.Page.context.getUserId().replace(/[{}]/g, "");
+            contextValues["formContext"] = null;
+            return contextValues;
+        }
+        else {
+            throw (`ERROR: Did you forget to check 'Pass execution context as first parameter in the OnLoad event?'`);
+        }
+    }
+
+    function setConfigOptions(config: any, formContext: any) {
         try {
             if (config.hasOwnProperty("enableDebug")) { //default false
                 enableDebug = config.enableDebug;
@@ -117,7 +157,7 @@ namespace D365AppInsights {
             if (config.hasOwnProperty("disablePageSaveTimeTracking")) { //default false
                 disablePageSaveTimeTracking = config.disablePageSaveTimeTracking;
                 if (!disablePageSaveTimeTracking)
-                    addPageSaveHandler();
+                    addPageSaveHandler(formContext);
             }
 
             if (config.hasOwnProperty("percentLoggedPageSaveTime")) //default 100
@@ -193,15 +233,18 @@ namespace D365AppInsights {
             }
 
         } catch (error) {
-            console.log(`DEBUG: Application Insights error parsing configuration parameters: ${error}`);
+            console.log(`ERROR: Application Insights error parsing configuration parameters: ${error}`);
         }
     }
 
-    function addPageSaveHandler() {
+    function addPageSaveHandler(formContext?: any) {
         if (disablePageSaveTimeTracking || pageSaveEventAdded)
             return;
 
-        Xrm.Page.data.entity.addOnSave(D365AppInsights.writePageSaveMetric);
+        if (formContext)
+            formContext.data.entity.addOnSave(D365AppInsights.writePageSaveMetric);
+        else
+            Xrm.Page.data.entity.addOnSave(D365AppInsights.writePageSaveMetric);
         pageSaveEventAdded = true;
     }
 
@@ -210,6 +253,9 @@ namespace D365AppInsights {
         targetPage.performance.clearMeasures();
     }
 
+    /**
+     * Starts the process of tracking the time it takes to save a record.
+     */
     export function trackSaveTime() {
         if (disablePageSaveTimeTracking)
             return;
@@ -220,9 +266,16 @@ namespace D365AppInsights {
             console.log(`DEBUG: Application Insights started timing PageSave`);
     }
 
+    /**
+     * Writes the page save metric to Application Insights.
+     * @param   {any} executionContext Form execution context
+     */
     export function writePageSaveMetric(executionContext) {
         if (!log("PageSaveTime", disablePageSaveTimeTracking, percentLoggedPageSaveTime))
             return;
+
+        if (!executionContext)
+            throw (`ERROR: Did you forget to check 'Pass execution context as first parameter in the OnSave event?'`);
 
         targetPage.performance.mark("PageSave-End");
         if (enableDebug)
@@ -259,9 +312,8 @@ namespace D365AppInsights {
             const pageLoad = targetPage.performance.timing.loadEventEnd - targetPage.performance.timing.responseEnd;
 
             writeMetric("PageLoad", pageLoad, 1, null, null, null);
-            if (enableDebug) {
+            if (enableDebug)
                 console.log(`DEBUG: Application Insights logged metric: PageLoad time: ${pageLoad}ms`);
-            }
         }
     }
 
@@ -418,9 +470,9 @@ namespace D365AppInsights {
     function combineProps(props: any, newProps: any) {
         if (!props && !newProps)
             return null;
-        if (newProps === null)
+        if (!newProps)
             return props;
-        if (props === null)
+        if (!props)
             return newProps;
 
         for (let attrname in newProps) {
@@ -462,7 +514,7 @@ namespace D365AppInsights {
             if (req.readyState === 4) {
                 if (req.status === 200) {
                     if (enableDebug)
-                        console.log("DEBUG: Application Insights logged Pageview via XHR");
+                        console.log("DEBUG: Application Insights logged Pageview via XHR22");
                 }
             }
         }
@@ -592,6 +644,10 @@ namespace D365AppInsights {
 
         const number = Math.floor(Math.random() * (101));
         return number <= threshold;
+    }
+
+    function isDefined<T>(a: T | null | undefined): a is T {
+        return a !== null && a !== undefined;
     }
 
     var xhrProto = XMLHttpRequest.prototype,

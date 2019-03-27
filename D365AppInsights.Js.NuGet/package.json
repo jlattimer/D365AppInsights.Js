@@ -2,7 +2,8 @@
   "name": "myproject",
   "version": "1.0.0",
   "devDependencies": {
-    "gulp": "^3.9.1",
+    "@types/xrm": "^9.0.12",
+    "gulp": "^4.0.0",
     "gulp-concat": "^2.6.1",
     "gulp-rename": "^1.2.2",
     "gulp-sourcemaps": "^2.6.4",

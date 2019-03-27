@@ -2,7 +2,8 @@
   "name": "myproject",
   "version": "1.0.0",
   "devDependencies": {
-    "@types/xrm": "^9.0.2"
+    "@types/xrm": "^9.0.2",
+    "typescript": "^3.3.4000"
   },
   "dependencies": {}
 }
