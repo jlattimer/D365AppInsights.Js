@@ -9,7 +9,12 @@
             console.log(primes);
         }
         finally {
+
+
+            // Write to Application Insights custom metrics
             D365AppInsights.writeMethodTime("TestMethod", t, performance.now());
+
+
         }
     }
     TestMethodTimer.executeTest = executeTest;

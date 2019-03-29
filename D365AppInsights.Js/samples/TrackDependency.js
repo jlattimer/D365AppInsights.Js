@@ -15,8 +15,13 @@
                 }
             }
         };
+
+
+        // Write to Application Insights dependencies
         D365AppInsights.trackDependencyTime(req, "DependencyTest");
         req.send();
+
+
     }
     TestTrackDependency.executeTest = executeTest;
 })(TestTrackDependency || (TestTrackDependency = {}));
