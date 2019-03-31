@@ -403,7 +403,7 @@ namespace D365AppInsights {
                 percentLoggedEvent = getLogPercent(config.percentLoggedEvent);
 
             if (enableDebug) {
-                console.log("D365 Application Insights configuration:");
+                console.group("D365 Application Insights configuration");
                 console.log(`enableDebug: ${enableDebug}`);
                 console.log(`disablePageviewTracking: ${disablePageviewTracking}`);
                 console.log(`percentLoggedPageview: ${percentLoggedPageview}`);
@@ -423,6 +423,7 @@ namespace D365AppInsights {
                 console.log(`percentLoggedMetric: ${percentLoggedMetric}`);
                 console.log(`disableEventTracking: ${disableEventTracking}`);
                 console.log(`percentLoggedEvent: ${percentLoggedEvent}`);
+                console.groupEnd();
             }
 
         } catch (error) {
