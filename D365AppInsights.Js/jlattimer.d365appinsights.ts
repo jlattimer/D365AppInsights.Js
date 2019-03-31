@@ -28,7 +28,7 @@ namespace D365AppInsights {
      * @param   {any} [executionContext] Form execution context
      * @param   {any} [config] The configuration JSON 
      */
-    export function startLogging(executionContext: any, config?: any) {
+    export function startLogging(executionContext: any, config?: any): void {
         if ((window as any).appInsights.config.instrumentationKey === "Your AI Instrumentation Key" ||
             !isGuid((window as any).appInsights.config.instrumentationKey)) {
             console.error(`ERROR: Application Insights Instrumentation Key was not updated or has an invalid value - in the code search for 'Your AI Instrumentation Key' and replace it with your key`);
@@ -102,7 +102,7 @@ namespace D365AppInsights {
     /**
      * Starts the process of tracking the time it takes to save a record.
      */
-    export function trackSaveTime() {
+    export function trackSaveTime(): void {
         if (disablePageSaveTimeTracking)
             return;
 
@@ -116,7 +116,7 @@ namespace D365AppInsights {
      * Writes the page save metric to Application Insights.
      * @param   {any} executionContext Form execution context
      */
-    export function writePageSaveMetric(executionContext) {
+    export function writePageSaveMetric(executionContext): void {
         if (!log("PageSaveTime", disablePageSaveTimeTracking, percentLoggedPageSaveTime))
             return;
 
@@ -151,7 +151,7 @@ namespace D365AppInsights {
      * @param   {any} [newProps] Additional properties as object - { key: value }
      * @param   {any} [measurements] The associated measurements as object - { key: value }
      */
-    export function writeEvent(name: string, newProps: any, measurements: any) {
+    export function writeEvent(name: string, newProps: any, measurements: any): void {
         if (!log("Event", disableEventTracking, percentLoggedEvent))
             return;
 
@@ -169,7 +169,8 @@ namespace D365AppInsights {
      * @param   {number} [max] The maximum value of metrics being logged (default = value)
      * @param   {any} [newProps] Additional properties as object - { key: value }
      */
-    export function writeMetric(name: string, value: number, sampleCount?: number, min?: number, max?: number, newProps?: any) {
+    export function writeMetric(name: string, value: number, sampleCount?: number, min?: number, max?: number,
+        newProps?: any): void {
         if (!log("Metric", disableMetricTracking, percentLoggedMetric))
             return;
 
@@ -195,7 +196,8 @@ namespace D365AppInsights {
      * @param   {any} [newProps] Additional properties as object - { key: value }
      * @param   {any} [measurements] The associated measurements as object - { key: value }
      */
-    export function writeException(exception: Error, handledAt?: string, severityLevel?: AI.SeverityLevel, newProps?: any, measurements?: any) {
+    export function writeException(exception: Error, handledAt?: string, severityLevel?: AI.SeverityLevel,
+        newProps?: any, measurements?: any): void {
         if (!log("Exception", disableExceptionTracking, percentLoggedException))
             return;
 
@@ -213,7 +215,7 @@ namespace D365AppInsights {
      * @param   {AI.SeverityLevel} [severityLevel] The severity level (default = Information)
      * @param   {any} [newProps] Additional properties as object - { key: value }
      */
-    export function writeTrace(message: string, severityLevel?: AI.SeverityLevel, newProps?: any) {
+    export function writeTrace(message: string, severityLevel?: AI.SeverityLevel, newProps?: any): void {
         if (!log("Trace", disableTraceTracking, percentLoggedTrace))
             return;
 
@@ -235,7 +237,8 @@ namespace D365AppInsights {
      * @param   {string} pathName The path part of the absolute URL (default = determined from name)
      * @param   {any} [newProps] Additional properties as object - { key: value }
      */
-    export function writeDependency(name: string, method: string, duration: number, success: boolean, resultCode: number, pathName?: string, newProps?: any) {
+    export function writeDependency(name: string, method: string, duration: number, success: boolean,
+        resultCode: number, pathName?: string, newProps?: any): void {
         if (!log("Dependency", disableDependencyTracking, percentLoggedDependency))
             return;
 
@@ -256,7 +259,7 @@ namespace D365AppInsights {
      * @param   {number} start The start time using performance.now()
      * @param   {number} end The end time using performance.now()
      */
-    export function writeMethodTime(methodName: string, start: number, end: number) {
+    export function writeMethodTime(methodName: string, start: number, end: number): void {
         const time: number = end - start;
         writeMetric(`Method Time: ${methodName}`, time, null, null, null);
         if (enableDebug)
@@ -269,7 +272,7 @@ namespace D365AppInsights {
      * @param   {number} start The start time using performance.now()
      * @param   {number} end The end time using performance.now()
      */
-    export function trackDependencyTime(req: any, methodName: string) {
+    export function trackDependencyTime(req: any, methodName: string): void {
         // ReSharper disable once Html.EventNotResolved
         req.addEventListener("loadstart", () => {
             getStartTime(req, methodName);
@@ -284,7 +287,7 @@ namespace D365AppInsights {
         });
     }
 
-    function setTelemetryInitializer() {
+    function setTelemetryInitializer(): void {
         (window as any).appInsights.context.addTelemetryInitializer(envelope => {
             const telemetryItem = envelope.data.baseData;
             // Add CRM specific properties to every request
@@ -325,7 +328,7 @@ namespace D365AppInsights {
         }
     }
 
-    function setConfigOptions(config: any, formContext: any) {
+    function setConfigOptions(config: any, formContext: any): void {
         try {
             if (config.hasOwnProperty("enableDebug")) { //default false
                 enableDebug = config.enableDebug;
@@ -427,7 +430,7 @@ namespace D365AppInsights {
         }
     }
 
-    function addPageSaveHandler(formContext?: any) {
+    function addPageSaveHandler(formContext?: any): void {
         if (disablePageSaveTimeTracking || pageSaveEventAdded)
             return;
 
@@ -438,12 +441,12 @@ namespace D365AppInsights {
         pageSaveEventAdded = true;
     }
 
-    function clearPerformanceEntries() {
+    function clearPerformanceEntries(): void {
         targetPage.performance.clearMarks();
         targetPage.performance.clearMeasures();
     }
 
-    function writePageLoadMetric() {
+    function writePageLoadMetric(): void {
         if (!log("PageLoadTime", disablePageLoadTimeTracking, percentLoggedPageLoadTime))
             return;
 
@@ -461,18 +464,18 @@ namespace D365AppInsights {
         }
     }
 
-    function getStartTime(req: any, methodName: string) {
+    function getStartTime(req: any, methodName: string): void {
         req.t0 = performance.now();
         req.methodName = methodName;
     }
 
-    function getEndTime(req: any, success: boolean) {
+    function getEndTime(req: any, success: boolean): void {
         const duration = performance.now() - req.t0;
         writeDependency(req._method, req._url, duration, success, req.status, `${req._url}`,
             { methodName: req.methodName, mode: getMode(req._async) });
     }
 
-    function combineProps(props: any, newProps: any) {
+    function combineProps(props: any, newProps: any): any {
         if (!props && !newProps)
             return null;
         if (!newProps)
@@ -488,7 +491,7 @@ namespace D365AppInsights {
         return props;
     }
 
-    function getIdFromCookie(cookieName: string) {
+    function getIdFromCookie(cookieName: string): string {
         const cookie = Microsoft.ApplicationInsights.Util.getCookie(cookieName);
         if (!cookie)
             return null;
@@ -655,7 +658,7 @@ namespace D365AppInsights {
         return a !== null && a !== undefined;
     }
 
-    function isGuid(stringToTest) {
+    function isGuid(stringToTest: string): boolean {
         if (stringToTest[0] === "{") {
             stringToTest = stringToTest.substring(1, stringToTest.length - 1);
         }
