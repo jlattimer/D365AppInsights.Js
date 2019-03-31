@@ -55,6 +55,7 @@
     <None Include="NuGetPack.config">
       <SubType>Designer</SubType>
     </None>
+    <None Include="package-lock.json" />
     <None Include="package.json" />
     <None Include="internalPackages.config">
       <SubType>Designer</SubType>

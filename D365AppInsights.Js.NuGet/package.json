@@ -1,14 +1,17 @@
 {
-  "name": "myproject",
+  "name": "d365appinsightsjsnuget",
+  "repository": "https://github.com/jlattimer/D365AppInsights.Js",
+  "description": "Dynamics 365/CE Application Insights logging for JavaScript/TypeScript",
+  "license": "MIT",
   "version": "1.0.0",
   "devDependencies": {
     "@types/xrm": "^9.0.12",
     "gulp": "^4.0.0",
     "gulp-concat": "^2.6.1",
-    "gulp-rename": "^1.2.2",
-    "gulp-sourcemaps": "^2.6.4",
-    "gulp-typescript": "^4.0.2",
-    "gulp-uglify": "^3.0.0",
-    "typescript": "^2.8.3"
+    "gulp-rename": "^1.4.0",
+    "gulp-sourcemaps": "^2.6.5",
+    "gulp-typescript": "^5.0.1",
+    "gulp-uglify": "^3.0.2",
+    "typescript": "^3.4.1"
   }
 }

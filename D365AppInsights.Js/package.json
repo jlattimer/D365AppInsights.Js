@@ -1,9 +1,12 @@
 {
-  "name": "myproject",
+  "name": "d365appinsightsjs",
+  "repository": "https://github.com/jlattimer/D365AppInsights.Js",
+  "description": "Dynamics 365/CE Application Insights logging for JavaScript/TypeScript",
+  "license": "MIT",
   "version": "1.0.0",
   "devDependencies": {
-    "@types/xrm": "^9.0.2",
-    "typescript": "^3.3.4000"
+    "@types/xrm": "^9.0.12",
+    "typescript": "^3.4.1"
   },
   "dependencies": {}
 }
