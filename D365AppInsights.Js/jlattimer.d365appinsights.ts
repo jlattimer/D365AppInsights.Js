@@ -99,6 +99,191 @@ namespace D365AppInsights {
         }
     }
 
+    /**
+     * Starts the process of tracking the time it takes to save a record.
+     */
+    export function trackSaveTime() {
+        if (disablePageSaveTimeTracking)
+            return;
+
+        clearPerformanceEntries()
+        targetPage.performance.mark("PageSave-Start");
+        if (enableDebug)
+            console.log(`DEBUG: Application Insights started timing PageSave`);
+    }
+
+    /**
+     * Writes the page save metric to Application Insights.
+     * @param   {any} executionContext Form execution context
+     */
+    export function writePageSaveMetric(executionContext) {
+        if (!log("PageSaveTime", disablePageSaveTimeTracking, percentLoggedPageSaveTime))
+            return;
+
+        if (!executionContext)
+            throw (`ERROR: Did you forget to check 'Pass execution context as first parameter in the OnSave event?'`);
+
+        targetPage.performance.mark("PageSave-End");
+        if (enableDebug)
+            console.log(`DEBUG: Application Insights ended timing PageSave`);
+
+        targetPage.performance.measure(
+            "PageSaveMetric",
+            "PageSave-Start",
+            "PageSave-End"
+        );
+
+        let measures: any = targetPage.performance.getEntriesByName("PageSaveMetric", "measure");
+        let measure: any = measures[0];
+        let saveMode: number = executionContext.getEventArgs().getSaveMode();
+        let duration: number = Math.round(measure.duration);
+
+        writeMetric("PageSave", duration, 1, null, null, { saveMode: getSaveModeName(saveMode) });
+        if (enableDebug)
+            console.log(`DEBUG: Application Insights logged metric: PageSave time: ${duration}ms`);
+
+        clearPerformanceEntries()
+    }
+
+    /**
+     * Writes an event message to Application Insights.
+     * @param   {string} name The event name
+     * @param   {any} [newProps] Additional properties as object - { key: value }
+     * @param   {any} [measurements] The associated measurements as object - { key: value }
+     */
+    export function writeEvent(name: string, newProps: any, measurements: any) {
+        if (!log("Event", disableEventTracking, percentLoggedEvent))
+            return;
+
+        (window as any).appInsights.trackEvent(name, newProps, measurements);
+        if (enableDebug)
+            console.log(`DEBUG: Application Insights logged event: ${name}`);
+    }
+
+    /**
+     * Writes a metric message to Application Insights.
+     * @param   {string} name The metric name
+     * @param   {number} value The metric value
+     * @param   {number} [sampleCount] The count of metrics being logged (default = 1)
+     * @param   {number} [min] The minimum value of metrics being logged (default = value)
+     * @param   {number} [max] The maximum value of metrics being logged (default = value)
+     * @param   {any} [newProps] Additional properties as object - { key: value }
+     */
+    export function writeMetric(name: string, value: number, sampleCount?: number, min?: number, max?: number, newProps?: any) {
+        if (!log("Metric", disableMetricTracking, percentLoggedMetric))
+            return;
+
+        if (!sampleCount)
+            sampleCount = 1;
+
+        if (!min)
+            min = value;
+
+        if (!max)
+            max = value;
+
+        (window as any).appInsights.trackMetric(name, value, sampleCount, min, max, newProps);
+        if (enableDebug)
+            console.log(`DEBUG: Application Insights logged metric: ${name}`);
+    }
+
+    /**
+     * Writes exception data to Application Insights.
+     * @param   {Error} exception The exception being logged
+     * @param   {string} [handledAt] The location the exception
+     * @param   {AI.SeverityLevel} [severityLevel] The severity level (default = Error)
+     * @param   {any} [newProps] Additional properties as object - { key: value }
+     * @param   {any} [measurements] The associated measurements as object - { key: value }
+     */
+    export function writeException(exception: Error, handledAt?: string, severityLevel?: AI.SeverityLevel, newProps?: any, measurements?: any) {
+        if (!log("Exception", disableExceptionTracking, percentLoggedException))
+            return;
+
+        if (!severityLevel)
+            severityLevel = AI.SeverityLevel.Error;
+
+        (window as any).appInsights.trackException(exception, handledAt, newProps, measurements, severityLevel);
+        if (enableDebug)
+            console.log(`DEBUG: Application Insights logged exception: ${exception.name}`);
+    }
+
+    /**
+     * Writes a trace message to Application Insights.
+     * @param   {string} message The trace message
+     * @param   {AI.SeverityLevel} [severityLevel] The severity level (default = Information)
+     * @param   {any} [newProps] Additional properties as object - { key: value }
+     */
+    export function writeTrace(message: string, severityLevel?: AI.SeverityLevel, newProps?: any) {
+        if (!log("Trace", disableTraceTracking, percentLoggedTrace))
+            return;
+
+        if (!severityLevel)
+            severityLevel = AI.SeverityLevel.Information;
+
+        (window as any).appInsights.trackTrace(message, newProps, severityLevel);
+        if (enableDebug)
+            console.log(`DEBUG: Application Insights logged trace: ${message}`);
+    }
+
+    /**
+     * Writes a dependency message to Application Insights.
+     * @param   {string} name The dependency name or absolute URL
+     * @param   {string} method The HTTP method (only logged with URL)
+     * @param   {number} duration The duration in ms of the dependent event
+     * @param   {boolean} success Set to true if the dependent event was successful, false otherwise
+     * @param   {number} resultCode The result code, HTTP or otherwise
+     * @param   {string} pathName The path part of the absolute URL (default = determined from name)
+     * @param   {any} [newProps] Additional properties as object - { key: value }
+     */
+    export function writeDependency(name: string, method: string, duration: number, success: boolean, resultCode: number, pathName?: string, newProps?: any) {
+        if (!log("Dependency", disableDependencyTracking, percentLoggedDependency))
+            return;
+
+        const id: string = Microsoft.ApplicationInsights.Util.newId();
+        if (!pathName) {
+            if (isUrl(name))
+                pathName = getUrlPath(name);
+        }
+
+        (window as any).appInsights.trackDependency(id, method, name, pathName, duration, success, resultCode, newProps, null);
+        if (enableDebug)
+            console.log(`DEBUG: Application Insights logged dependency: ${id}: ${duration}`);
+    }
+
+    /**
+     * Writes a metric message logging method execution duration to Application Insights.
+     * @param   {string} methodName The method name
+     * @param   {number} start The start time using performance.now()
+     * @param   {number} end The end time using performance.now()
+     */
+    export function writeMethodTime(methodName: string, start: number, end: number) {
+        const time: number = end - start;
+        writeMetric(`Method Time: ${methodName}`, time, null, null, null);
+        if (enableDebug)
+            console.log(`DEBUG: Application Insights logged method time: ${methodName}: ${time}ms`);
+    }
+
+    /**
+     * Attaches to a XHR request and writes a dependency message to Application Insights.
+     * @param   {string} methodName The method name
+     * @param   {number} start The start time using performance.now()
+     * @param   {number} end The end time using performance.now()
+     */
+    export function trackDependencyTime(req: any, methodName: string) {
+        // ReSharper disable once Html.EventNotResolved
+        req.addEventListener("loadstart", () => {
+            getStartTime(req, methodName);
+        });
+
+        req.addEventListener("load", () => {
+            getEndTime(req, true);
+        });
+
+        req.addEventListener("error", () => {
+            getEndTime(req, false);
+        });
+    }
+
     function setTelemetryInitializer() {
         (window as any).appInsights.context.addTelemetryInitializer(envelope => {
             const telemetryItem = envelope.data.baseData;
@@ -258,52 +443,6 @@ namespace D365AppInsights {
         targetPage.performance.clearMeasures();
     }
 
-    /**
-     * Starts the process of tracking the time it takes to save a record.
-     */
-    export function trackSaveTime() {
-        if (disablePageSaveTimeTracking)
-            return;
-
-        clearPerformanceEntries()
-        targetPage.performance.mark("PageSave-Start");
-        if (enableDebug)
-            console.log(`DEBUG: Application Insights started timing PageSave`);
-    }
-
-    /**
-     * Writes the page save metric to Application Insights.
-     * @param   {any} executionContext Form execution context
-     */
-    export function writePageSaveMetric(executionContext) {
-        if (!log("PageSaveTime", disablePageSaveTimeTracking, percentLoggedPageSaveTime))
-            return;
-
-        if (!executionContext)
-            throw (`ERROR: Did you forget to check 'Pass execution context as first parameter in the OnSave event?'`);
-
-        targetPage.performance.mark("PageSave-End");
-        if (enableDebug)
-            console.log(`DEBUG: Application Insights ended timing PageSave`);
-
-        targetPage.performance.measure(
-            "PageSaveMetric",
-            "PageSave-Start",
-            "PageSave-End"
-        );
-
-        let measures: any = targetPage.performance.getEntriesByName("PageSaveMetric", "measure");
-        let measure: any = measures[0];
-        let saveMode: number = executionContext.getEventArgs().getSaveMode();
-        let duration: number = Math.round(measure.duration);
-
-        writeMetric("PageSave", duration, 1, null, null, { saveMode: getSaveModeName(saveMode) });
-        if (enableDebug)
-            console.log(`DEBUG: Application Insights logged metric: PageSave time: ${duration}ms`);
-
-        clearPerformanceEntries()
-    }
-
     function writePageLoadMetric() {
         if (!log("PageLoadTime", disablePageLoadTimeTracking, percentLoggedPageLoadTime))
             return;
@@ -320,145 +459,6 @@ namespace D365AppInsights {
             if (enableDebug)
                 console.log(`DEBUG: Application Insights logged metric: PageLoad time: ${pageLoad}ms`);
         }
-    }
-
-    /**
-     * Writes an event message to Application Insights.
-     * @param   {string} name The event name
-     * @param   {any} [newProps] Additional properties as object - { key: value }
-     * @param   {any} [measurements] The associated measurements as object - { key: value }
-     */
-    export function writeEvent(name: string, newProps: any, measurements: any) {
-        if (!log("Event", disableEventTracking, percentLoggedEvent))
-            return;
-
-        (window as any).appInsights.trackEvent(name, newProps, measurements);
-        if (enableDebug)
-            console.log(`DEBUG: Application Insights logged event: ${name}`);
-    }
-
-    /**
-     * Writes a metric message to Application Insights.
-     * @param   {string} name The metric name
-     * @param   {number} value The metric value
-     * @param   {number} [sampleCount] The count of metrics being logged (default = 1)
-     * @param   {number} [min] The minimum value of metrics being logged (default = value)
-     * @param   {number} [max] The maximum value of metrics being logged (default = value)
-     * @param   {any} [newProps] Additional properties as object - { key: value }
-     */
-    export function writeMetric(name: string, value: number, sampleCount?: number, min?: number, max?: number, newProps?: any) {
-        if (!log("Metric", disableMetricTracking, percentLoggedMetric))
-            return;
-
-        if (!sampleCount)
-            sampleCount = 1;
-
-        if (!min)
-            min = value;
-
-        if (!max)
-            max = value;
-
-        (window as any).appInsights.trackMetric(name, value, sampleCount, min, max, newProps);
-        if (enableDebug)
-            console.log(`DEBUG: Application Insights logged metric: ${name}`);
-    }
-
-    /**
-     * Writes exception data to Application Insights.
-     * @param   {Error} exception The exception being logged
-     * @param   {string} [handledAt] The location the exception
-     * @param   {AI.SeverityLevel} [severityLevel] The severity level (default = Error)
-     * @param   {any} [newProps] Additional properties as object - { key: value }
-     * @param   {any} [measurements] The associated measurements as object - { key: value }
-     */
-    export function writeException(exception: Error, handledAt?: string, severityLevel?: AI.SeverityLevel, newProps?: any, measurements?: any) {
-        if (!log("Exception", disableExceptionTracking, percentLoggedException))
-            return;
-
-        if (!severityLevel)
-            severityLevel = AI.SeverityLevel.Error;
-
-        (window as any).appInsights.trackException(exception, handledAt, newProps, measurements, severityLevel);
-        if (enableDebug)
-            console.log(`DEBUG: Application Insights logged exception: ${exception.name}`);
-    }
-
-    /**
-     * Writes a trace message to Application Insights.
-     * @param   {string} message The trace message
-     * @param   {AI.SeverityLevel} [severityLevel] The severity level (default = Information)
-     * @param   {any} [newProps] Additional properties as object - { key: value }
-     */
-    export function writeTrace(message: string, severityLevel?: AI.SeverityLevel, newProps?: any) {
-        if (!log("Trace", disableTraceTracking, percentLoggedTrace))
-            return;
-
-        if (!severityLevel)
-            severityLevel = AI.SeverityLevel.Information;
-
-        (window as any).appInsights.trackTrace(message, newProps, severityLevel);
-        if (enableDebug)
-            console.log(`DEBUG: Application Insights logged trace: ${message}`);
-    }
-
-    /**
-     * Writes a dependency message to Application Insights.
-     * @param   {string} name The dependency name or absolute URL
-     * @param   {string} method The HTTP method (only logged with URL)
-     * @param   {number} duration The duration in ms of the dependent event
-     * @param   {boolean} success Set to true if the dependent event was successful, false otherwise
-     * @param   {number} resultCode The result code, HTTP or otherwise
-     * @param   {string} pathName The path part of the absolute URL (default = determined from name)
-     * @param   {any} [newProps] Additional properties as object - { key: value }
-     */
-    export function writeDependency(name: string, method: string, duration: number, success: boolean, resultCode: number, pathName?: string, newProps?: any) {
-        if (!log("Dependency", disableDependencyTracking, percentLoggedDependency))
-            return;
-
-        const id: string = Microsoft.ApplicationInsights.Util.newId();
-        if (!pathName) {
-            if (isUrl(name))
-                pathName = getUrlPath(name);
-        }
-
-        (window as any).appInsights.trackDependency(id, method, name, pathName, duration, success, resultCode, newProps, null);
-        if (enableDebug)
-            console.log(`DEBUG: Application Insights logged dependency: ${id}: ${duration}`);
-    }
-
-    /**
-     * Writes a metric message logging method execution duration to Application Insights.
-     * @param   {string} methodName The method name
-     * @param   {number} start The start time using performance.now()
-     * @param   {number} end The end time using performance.now()
-     */
-    export function writeMethodTime(methodName: string, start: number, end: number) {
-        const time: number = end - start;
-        writeMetric(`Method Time: ${methodName}`, time, null, null, null);
-        if (enableDebug)
-            console.log(`DEBUG: Application Insights logged method time: ${methodName}: ${time}ms`);
-    }
-
-    /**
-     * Attaches to a XHR request and writes a dependency message to Application Insights.
-     * @param   {string} methodName The method name
-     * @param   {number} start The start time using performance.now()
-     * @param   {number} end The end time using performance.now()
-     */
-    export function trackDependencyTime(req: any, methodName: string) {
-        // ReSharper disable once Html.EventNotResolved
-        req.addEventListener("loadstart", () => {
-            getStartTime(req, methodName);
-        });
-
-        req.addEventListener("load", () => {
-            getEndTime(req, true);
-        });
-
-        req.addEventListener("error", () => {
-            getEndTime(req, false);
-        });
     }
 
     function getStartTime(req: any, methodName: string) {
