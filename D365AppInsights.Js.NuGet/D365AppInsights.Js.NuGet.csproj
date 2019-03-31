@@ -64,14 +64,14 @@
   <ItemGroup>
     <TypeScriptCompile Include="content\jlattimer.d365appinsights_1.0.4.d.ts" />
     <TypeScriptCompile Include="content\jlattimer.d365appinsights_1.0.4.ts" />
-    <TypeScriptCompile Include="content\scripts\ai.1.0.18-build01843.d.ts" />
+    <TypeScriptCompile Include="content\scripts\ai.1.0.20-build00666.d.ts" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="content\jlattimer.d365appinsights_1.0.4.js" />
     <Content Include="content\jlattimer.d365appinsights_1.0.4.min.js" />
     <Content Include="content\ReadMe.txt" />
-    <Content Include="content\scripts\ai.1.0.18-build01843.js" />
-    <Content Include="content\scripts\ai.1.0.18-build01843.min.js" />
+    <Content Include="content\scripts\ai.1.0.20-build00666.js" />
+    <Content Include="content\scripts\ai.1.0.20-build00666.min.js" />
     <Content Include="content\scripts\ai.init.js" />
     <Content Include="gulpfile.js" />
   </ItemGroup>

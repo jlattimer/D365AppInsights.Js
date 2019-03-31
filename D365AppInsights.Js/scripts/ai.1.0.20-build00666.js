@@ -472,7 +472,35 @@ var Microsoft;
         ApplicationInsights._InternalLogging = _InternalLogging;
     })(ApplicationInsights = Microsoft.ApplicationInsights || (Microsoft.ApplicationInsights = {}));
 })(Microsoft || (Microsoft = {}));
+var Microsoft;
+(function (Microsoft) {
+    var ApplicationInsights;
+    (function (ApplicationInsights) {
+        "use strict";
+        var UtilHelpers = /** @class */ (function () {
+            function UtilHelpers() {
+            }
+            /**
+             * generate random id string
+             */
+            UtilHelpers.newId = function () {
+                var base64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+                var result = "";
+                var random = Math.random() * 1073741824; //5 symbols in base64, almost maxint
+                while (random > 0) {
+                    var char = base64chars.charAt(random % 64);
+                    result += char;
+                    random = Math.floor(random / 64);
+                }
+                return result;
+            };
+            return UtilHelpers;
+        }());
+        ApplicationInsights.UtilHelpers = UtilHelpers;
+    })(ApplicationInsights = Microsoft.ApplicationInsights || (Microsoft.ApplicationInsights = {}));
+})(Microsoft || (Microsoft = {}));
 /// <reference path="./Logging.ts" />
+/// <reference path="./UtilHelpers.ts" />
 var Microsoft;
 (function (Microsoft) {
     var ApplicationInsights;
@@ -794,15 +822,7 @@ var Microsoft;
              * generate random id string
              */
             Util.newId = function () {
-                var base64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-                var result = "";
-                var random = Math.random() * 1073741824; //5 symbols in base64, almost maxint
-                while (random > 0) {
-                    var char = base64chars.charAt(random % 64);
-                    result += char;
-                    random = Math.floor(random / 64);
-                }
-                return result;
+                return ApplicationInsights.UtilHelpers.newId();
             };
             /**
              * Check if an object is of type Array
@@ -4446,7 +4466,7 @@ var Microsoft;
     var ApplicationInsights;
     (function (ApplicationInsights) {
         "use strict";
-        ApplicationInsights.Version = "1.0.18";
+        ApplicationInsights.Version = "1.0.20";
         /**
          * The main API that sends telemetry to Application Insights.
          * Learn more: http://go.microsoft.com/fwlink/?LinkID=401493

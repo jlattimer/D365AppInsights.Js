@@ -1,27 +1,27 @@
 ﻿/// <reference path="node_modules/@types/xrm/index.d.ts" />
-/// <reference path="scripts/ai.1.0.18-build01843.d.ts" />
+/// <reference path="scripts/ai.1.0.20-build00666.d.ts" />
 
 namespace D365AppInsights {
-    var enableDebug: boolean = false;
-    var props: Object;
-    var disablePageviewTracking: boolean = false;
-    var percentLoggedPageview: number = 100;
-    var disablePageLoadTimeTracking: boolean = false;
-    var percentLoggedPageLoadTime: number = 100;
-    var disablePageSaveTimeTracking: boolean = false;
-    var percentLoggedPageSaveTime: number = 100;
-    var disableTraceTracking: boolean = false;
-    var percentLoggedTrace: number = 100;
-    var disableExceptionTracking: boolean = false;
-    var percentLoggedException: number = 100;
-    var disableDependencyTracking: boolean = false;
-    var percentLoggedDependency: number = 100;
-    var disableMetricTracking: boolean = false;
-    var percentLoggedMetric: number = 100;
-    var disableEventTracking: boolean = false;
-    var percentLoggedEvent: number = 100;
-    var targetPage: any = window;
-    var pageSaveEventAdded = false;
+    let props: object = {};
+    let enableDebug: boolean = false;
+    let disablePageviewTracking: boolean = false;
+    let percentLoggedPageview: number = 100;
+    let disablePageLoadTimeTracking: boolean = false;
+    let percentLoggedPageLoadTime: number = 100;
+    let disablePageSaveTimeTracking: boolean = false;
+    let percentLoggedPageSaveTime: number = 100;
+    let disableTraceTracking: boolean = false;
+    let percentLoggedTrace: number = 100;
+    let disableExceptionTracking: boolean = false;
+    let percentLoggedException: number = 100;
+    let disableDependencyTracking: boolean = false;
+    let percentLoggedDependency: number = 100;
+    let disableMetricTracking: boolean = false;
+    let percentLoggedMetric: number = 100;
+    let disableEventTracking: boolean = false;
+    let percentLoggedEvent: number = 100;
+    let targetPage: any = window;
+    let pageSaveEventAdded = false;
 
     /**
      * Configures and enables logging to Application Insights. Must send both executionContext and config or just config.
@@ -40,14 +40,15 @@ namespace D365AppInsights {
             executionContext = null;
         }
 
-        let contextValues = getContextValues(executionContext)
+        let contextValues: any = getContextValues(executionContext)
 
         if (config)
             setConfigOptions(config, contextValues.formContext);
 
         // Capture PageView start
+        let pageViewStart: number;
         if (!disablePageviewTracking)
-            var pageViewStart = performance.now();
+            pageViewStart = performance.now();
 
         if (/ClientApiWrapper\.aspx/i.test(window.location.pathname)) {
             targetPage = window.parent;
@@ -55,7 +56,20 @@ namespace D365AppInsights {
                 console.log("DEBUG: Application Insights page target: window.parent");
         }
 
-        let formName = contextValues.formName;
+        let formName: string = contextValues.formName;
+        props["entityId"] = contextValues.entityId;
+        props["entityName"] = contextValues.entityName;
+        props["formType"] = contextValues.formType;
+        props["orgName"] = contextValues.orgName;
+        props["orgVersion"] = contextValues.orgVersion;
+        props["formName"] = formName;
+        props["source"] = "JavaScript";
+
+        setTelemetryInitializer();
+
+        (window as any).appInsights.setAuthenticatedUserContext(contextValues.userId, null, false);
+
+        writePageLoadMetric();
 
         // Custom implementation of Pageview to avoid duplicate events being 
         // recorded likely due to CRM/D365 already implementing AI which currently
@@ -63,7 +77,7 @@ namespace D365AppInsights {
         if (log("PageviewTracking", disablePageviewTracking, percentLoggedPageview)) {
             (window as any).addEventListener("beforeunload",
                 () => {
-                    const envelope = createPageViewEnvelope(formName, pageViewStart);
+                    const envelope: any = createPageViewEnvelope(formName, pageViewStart, props);
 
                     if (navigator.sendBeacon) {
                         navigator.sendBeacon((window as any).appInsights.config.endpointUrl, JSON.stringify(envelope));
@@ -72,8 +86,8 @@ namespace D365AppInsights {
                     } else {
                         // IE doesn't support Beacon - use sync XHR w/ delay instead
                         // Need slight delay to ensure PageView gets sent
-                        var waitMs = 100; // Milliseconds wait
-                        var futureTime = (new Date()).getTime() + waitMs;
+                        let waitMs: number = 100; // Milliseconds wait
+                        let futureTime: number = (new Date()).getTime() + waitMs;
 
                         sendPageViewRequest(envelope);
 
@@ -83,37 +97,23 @@ namespace D365AppInsights {
                 },
                 false);
         }
+    }
 
-        props = {};
-        props["entityId"] = contextValues.entityId;
-        props["entityName"] = contextValues.entityName;
-        props["formType"] = contextValues.formType;
-        props["orgName"] = contextValues.orgName;
-        props["orgVersion"] = contextValues.orgVersion;
-        props["formName"] = formName;
-        props["source"] = "JavaScript";
-
-        if (!(window as any).appInsights.queue)
-            (window as any).appInsights.queue = [];
-
-        (window as any).appInsights.queue.push(() => {
-            (window as any).appInsights.context.addTelemetryInitializer(envelope => {
-                const telemetryItem = envelope.data.baseData;
-                // Add CRM specific properties to every request
-                telemetryItem.properties = combineProps(telemetryItem.properties, props);
-            });
+    function setTelemetryInitializer() {
+        (window as any).appInsights.context.addTelemetryInitializer(envelope => {
+            const telemetryItem = envelope.data.baseData;
+            // Add CRM specific properties to every request
+            telemetryItem.properties = combineProps(telemetryItem.properties, props);
+            if (enableDebug)
+                console.log("DEBUG: Added telemetry initializer");
         });
-
-        (window as any).appInsights.setAuthenticatedUserContext(contextValues.userId, null, false);
-
-        writePageLoadMetric();
     }
 
     function getContextValues(executionContext: any): any {
         let contextValues = {};
 
         if (executionContext && isDefined(executionContext.getFormContext)) {
-            let formContext = executionContext.getFormContext();
+            let formContext: any = executionContext.getFormContext();
             contextValues["formName"] = formContext.ui.formSelector.getCurrentItem().getLabel();
             contextValues["entityId"] = formContext.data.entity.getId().replace(/[{}]/g, "");
             contextValues["entityName"] = formContext.data.entity.getEntityName();
@@ -292,10 +292,10 @@ namespace D365AppInsights {
             "PageSave-End"
         );
 
-        var measures = targetPage.performance.getEntriesByName("PageSaveMetric", "measure");
-        var measure = measures[0];
-        var saveMode = executionContext.getEventArgs().getSaveMode();
-        var duration = Math.round(measure.duration);
+        let measures: any = targetPage.performance.getEntriesByName("PageSaveMetric", "measure");
+        let measure: any = measures[0];
+        let saveMode: number = executionContext.getEventArgs().getSaveMode();
+        let duration: number = Math.round(measure.duration);
 
         writeMetric("PageSave", duration, 1, null, null, { saveMode: getSaveModeName(saveMode) });
         if (enableDebug)
@@ -416,7 +416,7 @@ namespace D365AppInsights {
         if (!log("Dependency", disableDependencyTracking, percentLoggedDependency))
             return;
 
-        const id = Microsoft.ApplicationInsights.Util.newId();
+        const id: string = Microsoft.ApplicationInsights.Util.newId();
         if (!pathName) {
             if (isUrl(name))
                 pathName = getUrlPath(name);
@@ -434,7 +434,7 @@ namespace D365AppInsights {
      * @param   {number} end The end time using performance.now()
      */
     export function writeMethodTime(methodName: string, start: number, end: number) {
-        const time = end - start;
+        const time: number = end - start;
         writeMetric(`Method Time: ${methodName}`, time, null, null, null);
         if (enableDebug)
             console.log(`DEBUG: Application Insights logged method time: ${methodName}: ${time}ms`);
@@ -492,7 +492,7 @@ namespace D365AppInsights {
         const cookie = Microsoft.ApplicationInsights.Util.getCookie(cookieName);
         if (!cookie)
             return null;
-        const params = cookie.split(Microsoft.ApplicationInsights.Context.User.cookieSeparator);
+        const params: string[] = cookie.split(Microsoft.ApplicationInsights.Context.User.cookieSeparator);
         if (params.length < 1)
             return null;
 
@@ -504,14 +504,14 @@ namespace D365AppInsights {
     }
 
     function getUrlPath(url: string): string {
-        const urlElem = document.createElement("a");
+        const urlElem: any = document.createElement("a");
         urlElem.href = url;
 
         return urlElem.pathname;
     }
 
     function sendPageViewRequest(envelope: Microsoft.Telemetry.Envelope): void {
-        var req = new XMLHttpRequest();
+        let req: any = new XMLHttpRequest();
         req.open("POST", (window as any).appInsights.config.endpointUrl, false); // Doesn't work if async
         req.setRequestHeader("Accept", "*/*");
         req.setRequestHeader("Content-Type", "application/json");
@@ -526,9 +526,9 @@ namespace D365AppInsights {
         req.send(JSON.stringify(envelope));
     }
 
-    function createPageViewEnvelope(formName: string, pageViewStart: number): Microsoft.Telemetry.Envelope {
-        var iKey = (window as any).appInsights.config.instrumentationKey;
-        var envelope = new Microsoft.Telemetry.Envelope;
+    function createPageViewEnvelope(formName: string, pageViewStart: number, props: object): Microsoft.Telemetry.Envelope {
+        let iKey: string = (window as any).appInsights.config.instrumentationKey;
+        let envelope: Microsoft.Telemetry.Envelope = new Microsoft.Telemetry.Envelope;
         envelope.time = new Date().toISOString();
         envelope.iKey = iKey;
         envelope.name = `Microsoft.ApplicationInsights.${iKey.replace("-", "")}.Pageview`;
@@ -543,11 +543,11 @@ namespace D365AppInsights {
         envelope.tags["ai.operation.id"] = (window as any).appInsights.context.operation.id;
         envelope.tags["ai.operation.name"] = (window as any).appInsights.context.operation.name;
         envelope.data.baseType = "PageviewData";
-        var pageViewData = new AI.PageViewData;
+        let pageViewData: AI.PageViewData = new AI.PageViewData;
         pageViewData.ver = 2;
         pageViewData.name = formName;
         pageViewData.url = Microsoft.ApplicationInsights.Telemetry.Common.DataSanitizer.sanitizeUrl((window as any).location.href);
-        var d = performance.now() - pageViewStart;
+        let d: number = performance.now() - pageViewStart;
         pageViewData.duration = Microsoft.ApplicationInsights.Util.msToTimeSpan(d);
         envelope.data["baseData"] = pageViewData;
         envelope.data["baseData"]["properties"] = Microsoft.ApplicationInsights.Telemetry.Common.DataSanitizer.sanitizeProperties(props);
@@ -614,7 +614,7 @@ namespace D365AppInsights {
             return 100;
         }
 
-        let x = parseFloat(value);
+        let x: number = parseFloat(value);
         x = Math.round(x);
 
         if (x < 1)
@@ -647,7 +647,7 @@ namespace D365AppInsights {
         if (threshold === 0)
             return false;
 
-        const number = Math.floor(Math.random() * (101));
+        const number: number = Math.floor(Math.random() * (101));
         return number <= threshold;
     }
 
@@ -659,11 +659,11 @@ namespace D365AppInsights {
         if (stringToTest[0] === "{") {
             stringToTest = stringToTest.substring(1, stringToTest.length - 1);
         }
-        var regexGuid = /^(\{){0,1}[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\}){0,1}$/gi;
+        const regexGuid: any = /^(\{){0,1}[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\}){0,1}$/gi;
         return regexGuid.test(stringToTest);
     }
 
-    var xhrProto = XMLHttpRequest.prototype,
+    let xhrProto: any = XMLHttpRequest.prototype,
         origOpen = xhrProto.open;
 
     xhrProto.open = <{

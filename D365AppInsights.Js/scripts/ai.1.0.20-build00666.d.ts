@@ -640,6 +640,14 @@ declare module Microsoft.ApplicationInsights {
     }
 }
 declare module Microsoft.ApplicationInsights {
+    class UtilHelpers {
+        /**
+         * generate random id string
+         */
+        static newId(): string;
+    }
+}
+declare module Microsoft.ApplicationInsights {
     class Util {
         private static document;
         private static _canUseCookies;
